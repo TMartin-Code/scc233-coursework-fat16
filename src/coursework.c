@@ -6,6 +6,8 @@
 #include<stdint.h>
 #include<errno.h>
 #include<stdio.h>
+#include<unistd.h>
+#include<stddef.h>
 
 // fat16 FileSystem in C
 
@@ -65,7 +67,7 @@ int main(int argc, char *argv[])
 { 
     if (argc != 2)
     {
-        print("Error");
+        printf("Error");
     }
 
     int fd = fileOpen(argv[1]);
@@ -82,7 +84,7 @@ int main(int argc, char *argv[])
         {
             printf("%02X ", buffer[i]);
         }
-        printf("\n")
+        printf("\n");
 
     }
     fileClose(fd);

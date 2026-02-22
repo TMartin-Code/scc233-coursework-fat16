@@ -50,13 +50,30 @@ typedef struct __attribute__((__packed__))
     uint16_t DIR_CrtTime;       // Creation time in 2s intervals
     uint16_t DIR_CrtDate;       // Date file created
     uint16_t DIR_LstAccDate;    // Date of last read or write
-    uint16_t DIR_FstClisHI;     // Top 16 bits file's 1st cluser
+    uint16_t DIR_FstClusHI;     // Top 16 bits file's 1st cluser
     uint16_t DIR_WrtTime;       // Time of last write
     uint16_t DIR_WrtDate;       // Date of last write
     uint16_t DIR_FstClusLO;     // Lower 16 bits file's 1st cluster
     uint32_t DIR_FileSize;      // File size in bytes
 } DirectoryStructure;
 
+typedef struct __attribute__((__packed__))
+{
+ uint32_t startCluster;
+ uint32_t currentCluster;
+ uint32_t size;
+ uint32_t offset;
+} FATFile;
+
+// typedef struct __attribute__((__packed__))
+// {
+
+// } Volume;
+
+// typedef struct __attribute__((__packed__))
+// {
+
+// } Directory;
 
 
 char * defaultFile = "../src/fat16.img";
@@ -109,7 +126,7 @@ void readImage(int offset, char * filePath, int toRead, void * buffer)
 }
 
 // Task 3
-void printfat(uint16_t * fatBuffer, uint16_t start)
+void printClusterChain(uint16_t * fatBuffer, uint16_t start)
 {
     uint32_t currentCluster = start;
 
@@ -188,7 +205,7 @@ void getFileName(DirectoryStructure directory, char *fileName)
 
 void printDirectory(DirectoryStructure directory, char * fileName, char *attrFlags, int *writeDate, int * writeTime)
 {
-    uint32_t startCluster = (directory.DIR_FstClisHI << 16) | directory.DIR_FstClusLO;
+    uint32_t startCluster = (directory.DIR_FstClusHI << 16) | directory.DIR_FstClusLO;
     printf("| %-8u | %02d:%02d:%02d | %04d/%02d/%02d | %-15s | %-10u | %-13s|\n",
         startCluster,
         writeTime[0], writeTime[1], writeTime[2],
@@ -197,15 +214,6 @@ void printDirectory(DirectoryStructure directory, char * fileName, char *attrFla
         directory.DIR_FileSize,
         fileName);
 }
-
-
-// void openFile(Volume *, ShortDirEntry *);
-// void seekFile(File *, off_t offset, inr whence);
-// void readFile(File *, void * buffer, size_t length);
-// void closeFile(File *);
-
-
-
 
 // Main Function
 int main(int argc, char ** argv)
@@ -250,18 +258,21 @@ int main(int argc, char ** argv)
 
     readImage(fatStart, filePath, fatSize, fatBuffer);
     printf("------ Task 3 ------\n");
-    printfat(fatBuffer, startingClusterNum);
+    printClusterChain(fatBuffer, startingClusterNum);
     printf("\n");
+
 
     // Task 4
     DirectoryStructure * rootDir = (DirectoryStructure *) malloc(sizeof(DirectoryStructure));
     uint32_t sizeOf = (bootSector->BPB_RootEntCnt*sizeof(DirectoryStructure));
 
     DirectoryStructure rootEntries[bootSector->BPB_RootEntCnt];
-    printf("rootEntries: %d\n", sizeof(rootEntries));
-    printf("Directorystructure: %d\n", sizeof(DirectoryStructure));
+    // printf("rootEntries: %d\n", (int)sizeof(rootEntries));
+    // printf("Directorystructure: %d\n", (int)sizeof(DirectoryStructure));
+
     uint32_t rootStart = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16))*bootSector->BPB_BytsPerSec;
-    printf("sizeOf: %d\n", sizeOf);
+
+    // printf("sizeOf: %d\n", sizeOf);
 
     printf("------ Task 4 ------\n");
     printf("==================================================================================\n");
@@ -290,12 +301,12 @@ int main(int argc, char ** argv)
         {
             break;
         }
+
         if (rootDir->DIR_Name[0] == 0xE5 || rootDir->DIR_Attr == 0x0F)
         {
             continue;
         }
         rootEntries[rootEntry++] = *rootDir;
-
 
         // File Attributes
         char attrFlags[7] = "------\0";
@@ -323,23 +334,56 @@ int main(int argc, char ** argv)
         char fileName[13];
         getFileName(*rootDir, fileName);
         printDirectory(*rootDir, fileName, attrFlags, writeDate, writeTime);
-
     }
     close(fd);
     printf("==================================================================================\n\n");
 
-    for (int i = 0; i < rootEntry; i++)
+    // User Command Line Interface
+    while (1)
     {
-        uint16_t start = (rootEntries[i].DIR_FstClisHI << 16) | rootEntries[i].DIR_FstClusLO;
-        if (rootEntries[i].DIR_Attr & 0x10) {
-            printf("%s/", rootEntries[i].DIR_Name);
+        printf("Enter a command (h for help): ");
+        char command[128];
+        char input[128];
+        int bytesToRead;
+        char readFileName[13];
 
+        fgets(input, sizeof(input), stdin);
+
+        int cmdCount = sscanf(input, "%s %s %d", command, readFileName, &bytesToRead);
+
+        if (cmdCount == 1 && strcmp(command, "q") == 0)
+        {
+            printf("Quitting System.\n");
+            break;
         }
-        else {
-            printf("%s\n", rootEntries[i].DIR_Name);
+        else if (cmdCount == 1 && strcmp(command, "h") == 0)
+        {
+            printf("List of Commands: \n");
+            printf("q - Quit System\n");
+            printf("h - Help\n");
+            printf("ls - List Files\n");
+            printf("rf <filename> <bytes> - Read File\n");
+            continue;
         }
-        printfat(fatBuffer,start);
+        else if (cmdCount == 1 && strcmp(command, "ls") == 0)
+        {
+            printf("List of Files: \n");
+
+            continue;
+        }
+        else if (cmdCount == 3 && strcmp(command, "rf") == 0)
+        {
+            printf("Reading %d bytes from File: %s\n", bytesToRead, readFileName);
+            continue;
+        }
+        else
+        {
+            printf("Invalid command.\n");
+        }
     }
+
+
+
     free(fatBuffer);
     free(buffer);
     free(rootDir);

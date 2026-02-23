@@ -57,24 +57,6 @@ typedef struct __attribute__((__packed__))
     uint32_t DIR_FileSize;      // File size in bytes
 } DirectoryStructure;
 
-typedef struct __attribute__((__packed__))
-{
- uint32_t startCluster;
- uint32_t currentCluster;
- uint32_t size;
- uint32_t offset;
-} FATFile;
-
-// typedef struct __attribute__((__packed__))
-// {
-
-// } Volume;
-
-// typedef struct __attribute__((__packed__))
-// {
-
-// } Directory;
-
 
 char * defaultFile = "../src/fat16.img";
 
@@ -125,14 +107,16 @@ void readImage(int offset, char * filePath, int toRead, void * buffer)
     return;
 }
 
+// Create a function to create an array containing
 // Task 3
+// // Could provide a list and print it
 void printClusterChain(uint16_t * fatBuffer, uint16_t start)
 {
     uint32_t currentCluster = start;
 
     while (currentCluster < 0xFFF8)
     {
-        printf("0x%04X -> ", currentCluster);
+        printf("0x%02X -> ", currentCluster);
         currentCluster = fatBuffer[currentCluster];
     }
 
@@ -170,11 +154,17 @@ void findTime(int time, int * timeArray, int createTrue)
 // Task 4
 void getAttributes(DirectoryStructure directory, char *attrFlags)
 {
+    // Archive
     if (directory.DIR_Attr & 0x20) {attrFlags[0] = 'A';}
+    // Directory
     if (directory.DIR_Attr & 0x10) {attrFlags[1] = 'D';}
+    // Volume
     if (directory.DIR_Attr & 0x08) {attrFlags[2] = 'V';}
+    // System
     if (directory.DIR_Attr & 0x04) {attrFlags[3] = 'S';}
+    // Hidden
     if (directory.DIR_Attr & 0x02) {attrFlags[4] = 'H';}
+    // Read Only
     if (directory.DIR_Attr & 0x01) {attrFlags[5] = 'R';}
 }
 
@@ -215,73 +205,55 @@ void printDirectory(DirectoryStructure directory, char * fileName, char *attrFla
         fileName);
 }
 
-void readRootDir(DirectoryStructure * rootDir, char * filePath, BootSector * bootSector, uint32_t rootStart, DirectoryStructure * rootEntries)
+int checkValidRootFile(uint8_t * name, uint8_t attributes)
 {
-    printf("------ Task 4 ------\n");
-    printf("==================================================================================\n");
-    printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
-    printf("==================================================================================\n");
-    int fd = open(filePath, O_RDONLY);
-
-    if (fd < 0) {
-        perror("open");
-    }
-
-    int rootEntry = 0;
-    lseek(fd, rootStart, SEEK_SET);
-
-    for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
+    if (name[0] == 0x00)
     {
-
-        if(read(fd, rootDir, sizeof(DirectoryStructure))<0)
-        {
-            perror("Error reading from file\n");
-            break;
-        }
-
-        // File Names
-        if (rootDir->DIR_Name[0] == 0x00)
-        {
-            break;
-        }
-
-        if (rootDir->DIR_Name[0] == 0xE5 || rootDir->DIR_Attr == 0x0F)
-        {
-            continue;
-        }
-        rootEntries[rootEntry++] = *rootDir;
-
-        // File Attributes
-        char attrFlags[7] = "------\0";
-        getAttributes(*rootDir, attrFlags);
-
-        // Date format
-        int createDate[3];
-        int writeDate[3];
-
-        // Create Date
-        findDate(rootDir->DIR_CrtDate, createDate);
-        // Write Date
-        findDate(rootDir->DIR_WrtDate, writeDate);
-
-        // Time format
-        int createTime[4];
-        int writeTime[3];
-
-        // Create Time
-        findTime(rootDir->DIR_CrtTime, createTime, rootDir->DIR_CrtTimeTenth);
-        // Write Time
-        findTime(rootDir->DIR_WrtTime, writeTime, 0);
-
-        // Filename
-        char fileName[13];
-        getFileName(*rootDir, fileName);
-        printDirectory(*rootDir, fileName, attrFlags, writeDate, writeTime);
+        return 1;
     }
-    close(fd);
-    printf("==================================================================================\n\n");
+    if (*name == 0xE5 || attributes == 0x0F)
+    {
+        return 1;
+    }
+    return 0;
 }
+void readRootDir(DirectoryStructure * rootDir, BootSector * bootSector)
+{
+    // File Names
+    if (checkValidRootFile(rootDir->DIR_Name, rootDir->DIR_Attr))
+    {
+        return;
+    }
 
+    // File Attributes
+    char attrFlags[7] = "------\0";
+    getAttributes(*rootDir, attrFlags);
+
+    // Date format
+    int createDate[3];
+    int writeDate[3];
+
+    // Create Date
+    findDate(rootDir->DIR_CrtDate, createDate);
+    // Write Date
+    findDate(rootDir->DIR_WrtDate, writeDate);
+
+    // Time format
+    int createTime[4];
+    int writeTime[3];
+
+    // Create Time
+    findTime(rootDir->DIR_CrtTime, createTime, rootDir->DIR_CrtTimeTenth);
+    // Write Time
+    findTime(rootDir->DIR_WrtTime, writeTime, 0);
+
+    // Filename
+    char fileName[13];
+    getFileName(*rootDir, fileName);
+
+    // Print Data
+    printDirectory(*rootDir, fileName, attrFlags, writeDate, writeTime);
+}
 // Main Function
 int main(int argc, char ** argv)
 {
@@ -330,83 +302,28 @@ int main(int argc, char ** argv)
 
 
     // Task 4
-    DirectoryStructure * rootDir = (DirectoryStructure *) malloc(sizeof(DirectoryStructure));
+    // DirectoryStructure * rootDir = (DirectoryStructure *) malloc(sizeof(DirectoryStructure));
     uint32_t sizeOf = (bootSector->BPB_RootEntCnt*sizeof(DirectoryStructure));
 
-    DirectoryStructure rootEntries[bootSector->BPB_RootEntCnt];
-    // printf("rootEntries: %d\n", (int)sizeof(rootEntries));
-    // printf("Directorystructure: %d\n", (int)sizeof(DirectoryStructure));
+    DirectoryStructure * rootEntries = malloc(sizeOf);
 
     uint32_t rootStart = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16))*bootSector->BPB_BytsPerSec;
 
-    readRootDir(rootDir, filePath, bootSector, rootStart, rootEntries);
-    // printf("sizeOf: %d\n", sizeOf);
+    printf("Root Start: %d \nSize of Root: %d\n", rootStart, sizeOf);
+    printf("------ Task 4 ------\n");
+    readImage(rootStart, filePath, sizeOf, rootEntries);
+    printf("==================================================================================\n");
+    printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
+    printf("==================================================================================\n");
+    for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
+    {
+        readRootDir(&rootEntries[i], bootSector);
+    }
+    printf("==================================================================================\n\n");
 
-    // printf("------ Task 4 ------\n");
-    // printf("==================================================================================\n");
-    // printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
-    // printf("==================================================================================\n");
-    // int fd = open(filePath, O_RDONLY);
+    // readRootDir(rootDir, filePath, bootSector, rootStart, rootEntries);
 
-    // if (fd < 0) {
-    //     perror("open");
-    //     return 0;
-    // }
-
-    // int rootEntry = 0;
-    // lseek(fd, rootStart, SEEK_SET);
-    // for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
-    // {
-
-    //     if(read(fd, rootDir, sizeof(DirectoryStructure))<0)
-    //     {
-    //         perror("Error reading from file\n");
-    //         return 0;
-    //     }
-
-    //     // File Names
-    //     if (rootDir->DIR_Name[0] == 0x00)
-    //     {
-    //         break;
-    //     }
-
-    //     if (rootDir->DIR_Name[0] == 0xE5 || rootDir->DIR_Attr == 0x0F)
-    //     {
-    //         continue;
-    //     }
-    //     rootEntries[rootEntry++] = *rootDir;
-
-    //     // File Attributes
-    //     char attrFlags[7] = "------\0";
-    //     getAttributes(*rootDir, attrFlags);
-
-    //     // Date format
-    //     int createDate[3];
-    //     int writeDate[3];
-
-    //     // Create Date
-    //     findDate(rootDir->DIR_CrtDate, createDate);
-    //     // Write Date
-    //     findDate(rootDir->DIR_WrtDate, writeDate);
-
-    //     // Time format
-    //     int createTime[4];
-    //     int writeTime[3];
-
-    //     // Create Time
-    //     findTime(rootDir->DIR_CrtTime, createTime, rootDir->DIR_CrtTimeTenth);
-    //     // Write Time
-    //     findTime(rootDir->DIR_WrtTime, writeTime, 0);
-
-    //     // Filename
-    //     char fileName[13];
-    //     getFileName(*rootDir, fileName);
-    //     printDirectory(*rootDir, fileName, attrFlags, writeDate, writeTime);
-    // }
-    // close(fd);
-    // printf("==================================================================================\n\n");
-
-    // User Command Line Interface
+    // User Command Line Interface for Task 5
     while (1)
     {
         printf("Enter a command (h for help): ");
@@ -429,16 +346,25 @@ int main(int argc, char ** argv)
             printf("List of Commands: \n");
             printf("q - Quit System\n");
             printf("h - Help\n");
+            printf("tc <int> - Trace Cluster Chain\n");
             printf("ls - List Files\n");
             printf("rf <filename> <bytes> - Read File\n");
             continue;
         }
-        else if (cmdCount == 1 && strcmp(command, "ls") == 0)
+        else if (cmdCount == 2 && strcmp(command, "tc") == 0)
         {
-            printf("List of Files: \n");
+            uint16_t startCluster = atoi(readFileName);
 
+            printf("Chasing Cluster Chain from %d: ", startCluster);
+            printClusterChain(fatBuffer, startCluster);
             continue;
         }
+        // else if (cmdCount == 1 && strcmp(command, "ls") == 0)
+        // {
+        //     printf("List of Files: \n");
+        //     readRootDir(rootDir, filePath, bootSector, rootStart, rootEntries);
+        //     continue;
+        // }
         else if (cmdCount == 3 && strcmp(command, "rf") == 0)
         {
             printf("Reading %d bytes from File: %s\n", bytesToRead, readFileName);
@@ -447,14 +373,16 @@ int main(int argc, char ** argv)
         else
         {
             printf("Invalid command.\n");
+            continue;
         }
     }
 
-
+    uint32_t dataStart = rootStart + sizeOf;
 
     free(fatBuffer);
     free(buffer);
-    free(rootDir);
+    // free(rootDir);
+    free(rootEntries);
     free(bootSector);
     return 0;
 }

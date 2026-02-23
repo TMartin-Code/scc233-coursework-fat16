@@ -215,6 +215,73 @@ void printDirectory(DirectoryStructure directory, char * fileName, char *attrFla
         fileName);
 }
 
+void readRootDir(DirectoryStructure * rootDir, char * filePath, BootSector * bootSector, uint32_t rootStart, DirectoryStructure * rootEntries)
+{
+    printf("------ Task 4 ------\n");
+    printf("==================================================================================\n");
+    printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
+    printf("==================================================================================\n");
+    int fd = open(filePath, O_RDONLY);
+
+    if (fd < 0) {
+        perror("open");
+    }
+
+    int rootEntry = 0;
+    lseek(fd, rootStart, SEEK_SET);
+
+    for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
+    {
+
+        if(read(fd, rootDir, sizeof(DirectoryStructure))<0)
+        {
+            perror("Error reading from file\n");
+            break;
+        }
+
+        // File Names
+        if (rootDir->DIR_Name[0] == 0x00)
+        {
+            break;
+        }
+
+        if (rootDir->DIR_Name[0] == 0xE5 || rootDir->DIR_Attr == 0x0F)
+        {
+            continue;
+        }
+        rootEntries[rootEntry++] = *rootDir;
+
+        // File Attributes
+        char attrFlags[7] = "------\0";
+        getAttributes(*rootDir, attrFlags);
+
+        // Date format
+        int createDate[3];
+        int writeDate[3];
+
+        // Create Date
+        findDate(rootDir->DIR_CrtDate, createDate);
+        // Write Date
+        findDate(rootDir->DIR_WrtDate, writeDate);
+
+        // Time format
+        int createTime[4];
+        int writeTime[3];
+
+        // Create Time
+        findTime(rootDir->DIR_CrtTime, createTime, rootDir->DIR_CrtTimeTenth);
+        // Write Time
+        findTime(rootDir->DIR_WrtTime, writeTime, 0);
+
+        // Filename
+        char fileName[13];
+        getFileName(*rootDir, fileName);
+        printDirectory(*rootDir, fileName, attrFlags, writeDate, writeTime);
+    }
+    close(fd);
+    printf("==================================================================================\n\n");
+}
+
 // Main Function
 int main(int argc, char ** argv)
 {
@@ -272,71 +339,72 @@ int main(int argc, char ** argv)
 
     uint32_t rootStart = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16))*bootSector->BPB_BytsPerSec;
 
+    readRootDir(rootDir, filePath, bootSector, rootStart, rootEntries);
     // printf("sizeOf: %d\n", sizeOf);
 
-    printf("------ Task 4 ------\n");
-    printf("==================================================================================\n");
-    printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
-    printf("==================================================================================\n");
-    int fd = open(filePath, O_RDONLY);
+    // printf("------ Task 4 ------\n");
+    // printf("==================================================================================\n");
+    // printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
+    // printf("==================================================================================\n");
+    // int fd = open(filePath, O_RDONLY);
 
-    if (fd < 0) {
-        perror("open");
-        return 0;
-    }
+    // if (fd < 0) {
+    //     perror("open");
+    //     return 0;
+    // }
 
-    int rootEntry = 0;
-    lseek(fd, rootStart, SEEK_SET);
-    for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
-    {
+    // int rootEntry = 0;
+    // lseek(fd, rootStart, SEEK_SET);
+    // for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
+    // {
 
-        if(read(fd, rootDir, sizeof(DirectoryStructure))<0)
-        {
-            perror("Error reading from file\n");
-            return 0;
-        }
+    //     if(read(fd, rootDir, sizeof(DirectoryStructure))<0)
+    //     {
+    //         perror("Error reading from file\n");
+    //         return 0;
+    //     }
 
-        // File Names
-        if (rootDir->DIR_Name[0] == 0x00)
-        {
-            break;
-        }
+    //     // File Names
+    //     if (rootDir->DIR_Name[0] == 0x00)
+    //     {
+    //         break;
+    //     }
 
-        if (rootDir->DIR_Name[0] == 0xE5 || rootDir->DIR_Attr == 0x0F)
-        {
-            continue;
-        }
-        rootEntries[rootEntry++] = *rootDir;
+    //     if (rootDir->DIR_Name[0] == 0xE5 || rootDir->DIR_Attr == 0x0F)
+    //     {
+    //         continue;
+    //     }
+    //     rootEntries[rootEntry++] = *rootDir;
 
-        // File Attributes
-        char attrFlags[7] = "------\0";
-        getAttributes(*rootDir, attrFlags);
+    //     // File Attributes
+    //     char attrFlags[7] = "------\0";
+    //     getAttributes(*rootDir, attrFlags);
 
-        // Date format
-        int createDate[3];
-        int writeDate[3];
+    //     // Date format
+    //     int createDate[3];
+    //     int writeDate[3];
 
-        // Create Date
-        findDate(rootDir->DIR_CrtDate, createDate);
-        // Write Date
-        findDate(rootDir->DIR_WrtDate, writeDate);
+    //     // Create Date
+    //     findDate(rootDir->DIR_CrtDate, createDate);
+    //     // Write Date
+    //     findDate(rootDir->DIR_WrtDate, writeDate);
 
-        // Time format
-        int createTime[4];
-        int writeTime[3];
+    //     // Time format
+    //     int createTime[4];
+    //     int writeTime[3];
 
-        // Create Time
-        findTime(rootDir->DIR_CrtTime, createTime, rootDir->DIR_CrtTimeTenth);
-        // Write Time
-        findTime(rootDir->DIR_WrtTime, writeTime, 0);
+    //     // Create Time
+    //     findTime(rootDir->DIR_CrtTime, createTime, rootDir->DIR_CrtTimeTenth);
+    //     // Write Time
+    //     findTime(rootDir->DIR_WrtTime, writeTime, 0);
 
-        // Filename
-        char fileName[13];
-        getFileName(*rootDir, fileName);
-        printDirectory(*rootDir, fileName, attrFlags, writeDate, writeTime);
-    }
-    close(fd);
-    printf("==================================================================================\n\n");
+    //     // Filename
+    //     char fileName[13];
+    //     getFileName(*rootDir, fileName);
+    //     printDirectory(*rootDir, fileName, attrFlags, writeDate, writeTime);
+    // }
+    // close(fd);
+    // printf("==================================================================================\n\n");
 
     // User Command Line Interface
     while (1)

@@ -57,6 +57,18 @@ typedef struct __attribute__((__packed__))
     uint32_t DIR_FileSize;      // File size in bytes
 } DirectoryStructure;
 
+// Task 6
+typedef struct __attribute__((__packed__))
+{
+    uint8_t LDIR_Ord;           // Order/ position in sequence/ set
+    uint8_t LDIR_Name1[10 ];    // First 5 UNICODE characters
+    uint8_t LDIR_Attr;          // = ATTR_LONG_NAME (xx001111)
+    uint8_t LDIR_Type;          // Should = 0
+    uint8_t LDIR_Chksum;        // Checksum of short name
+    uint8_t LDIR_Name2[ 12 ];   // Middle 6 UNICODE characters
+    uint16_t LDIR_FstClusLO;    // MUST be zero
+    uint8_t LDIR_Name3[ 4 ];    // Last 2 UNICODE characters
+} LongFileNameEntry;
 
 char * defaultFile = "../src/fat16.img";
 
@@ -143,7 +155,8 @@ uint16_t nextCluster(uint16_t * fatBuffer, uint16_t start)
         return fatBuffer[currentCluster];
     }
 
-    return 0xFFF8;
+    currentCluster = 0xFFF8;
+    return currentCluster;
 }
 
 uint32_t getStartCluster(DirectoryStructure directory)
@@ -234,21 +247,44 @@ void printDirectory(DirectoryStructure directory, char * fileName, char *attrFla
 
 int checkValidRootFile(uint8_t * name, uint8_t attributes)
 {
-    if (name[0] == 0x00)
+    if (name[0] == 0x00 || *name == 0xE5)
     {
         return 1;
     }
-    if (*name == 0xE5 || attributes == 0x0F)
+
+    // 0x0F checks if LFN
+    if (attributes == 0x0F)
     {
-        return 1;
+        return 2;
     }
+
     return 0;
 }
+
+int lfnHandler(DirectoryStructure * rootDir, BootSector * bootSector)
+{
+
+    return 1;
+}
+
+
 void readRootDir(DirectoryStructure * rootDir, BootSector * bootSector)
 {
     // File Names
-    if (checkValidRootFile(rootDir->DIR_Name, rootDir->DIR_Attr))
+    int valid = checkValidRootFile(rootDir->DIR_Name, rootDir->DIR_Attr);
+
+    // Flag for whether LFN conditions are appropriate.
+    int hasLFN = 0;
+
+    if (valid == 1)
     {
+        return;
+    }
+    else if (valid == 2)
+    {
+        // Handle LFN
+        lfnHandler(rootDir, bootSector);
+        printf("LFN\n");
         return;
     }
 
@@ -281,6 +317,8 @@ void readRootDir(DirectoryStructure * rootDir, BootSector * bootSector)
     // Print Data
     printDirectory(*rootDir, fileName, attrFlags, writeDate, writeTime);
 }
+
+
 // Main Function
 int main(int argc, char ** argv)
 {
@@ -330,9 +368,6 @@ int main(int argc, char ** argv)
 
 
     // Task 4
-    // DirectoryStructure * rootDir = (DirectoryStructure *) malloc(sizeof(DirectoryStructure));
-    //
-    // ROOT DIRECTORY SIZE CALC IS WRONG COME BACK AND CHANGE
     uint32_t sizeOf = (bootSector->BPB_RootEntCnt*sizeof(DirectoryStructure));
 
     DirectoryStructure * rootEntries = malloc(sizeOf);
@@ -345,7 +380,7 @@ int main(int argc, char ** argv)
     readImage(rootStart, filePath, sizeOf, rootEntries);
 
     printf("+================================================================================+\n");
-    printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
+    printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "File Name");
     printf("+================================================================================+\n");
 
     for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
@@ -358,15 +393,9 @@ int main(int argc, char ** argv)
     uint32_t readLength = bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec;
     char * sectorBuffer = (void *) malloc(readLength);
 
-    // 1. Calculate how many bytes the Root Directory occupies
     uint32_t rootDirBytes = bootSector->BPB_RootEntCnt * 32;
 
-    // 2. Calculate the Start of the Data Area (Byte Offset)
-    // (Reserved + FATs) * BytesPerSec + RootDirBytes
     uint32_t dataStartByte = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec + rootDirBytes;
-
-    // 3. Calculate the Cluster Offset in bytes
-    // (cluster - 2) * SectorsPerCluster * BytesPerSector
 
     // User Command Line Interface for Task 5
     while (1)
@@ -435,7 +464,7 @@ int main(int argc, char ** argv)
                     }
 
                     uint32_t currentCluster = getStartCluster(rootEntries[i]);
-                    while (currentCluster != 0xFFF8)
+                    while (currentCluster != 0xFFFF)
                     {
                         uint32_t clusterOffsetByte = (currentCluster - 2) * bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec;
 
@@ -472,7 +501,7 @@ int main(int argc, char ** argv)
                         break;
                     }
                     uint32_t currentcluster = getStartCluster(rootEntries[i]);
-                    while (nextCluster(fatBuffer, currentcluster) != 0xFFF8)
+                    while (currentcluster != 0xFFFF)
                     {
                         uint32_t clusterOffsetByte = (currentcluster - 2) * bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec;
 

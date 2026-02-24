@@ -1,6 +1,6 @@
 // Header Files
+#include <endian.h>
 #include <linux/limits.h>
-#include <setjmp.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -85,16 +85,27 @@ void printBytes(unsigned char * buffer, int length)
     printf("\n");
 }
 
+int openFDR(char * filePath)
+{
+    int fd = open(filePath, O_RDONLY);
+    if (fd < 0)
+    {
+        printf("Error opening File");
+        return -1;
+    }
+    return fd;
+}
+
 // Task 1 read from fat16.img w/ offset
 void readImage(int offset, char * filePath, int toRead, void * buffer)
 {
     // Task 1
-    int fd = open(filePath, O_RDONLY);
-    if (fd < 0) {
-        perror("Error Opening to Read\n");
+    // int fd = open(filePath, O_RDONLY);
+    int fd = openFDR(filePath);
+    if (fd == -1)
+    {
         return;
     }
-
     lseek(fd, offset, SEEK_SET);
 
     if (read(fd, buffer, toRead) < 0)
@@ -123,6 +134,22 @@ void printClusterChain(uint16_t * fatBuffer, uint16_t start)
     printf("EOF\n");
 }
 
+uint16_t nextCluster(uint16_t * fatBuffer, uint16_t start)
+{
+    uint32_t currentCluster = start;
+
+    while (currentCluster < 0xFFF8)
+    {
+        return fatBuffer[currentCluster];
+    }
+
+    return 0xFFF8;
+}
+
+uint32_t getStartCluster(DirectoryStructure directory)
+{
+    return (directory.DIR_FstClusHI) << 16 | directory.DIR_FstClusLO;
+}
 // Task 4
 void findDate(int date, int * dateArray)
 {
@@ -195,7 +222,7 @@ void getFileName(DirectoryStructure directory, char *fileName)
 
 void printDirectory(DirectoryStructure directory, char * fileName, char *attrFlags, int *writeDate, int * writeTime)
 {
-    uint32_t startCluster = (directory.DIR_FstClusHI << 16) | directory.DIR_FstClusLO;
+    uint32_t startCluster = getStartCluster(directory);
     printf("| %-8u | %02d:%02d:%02d | %04d/%02d/%02d | %-15s | %-10u | %-13s|\n",
         startCluster,
         writeTime[0], writeTime[1], writeTime[2],
@@ -293,6 +320,7 @@ int main(int argc, char ** argv)
     // Task 3
     uint16_t fatStart = bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec;
     uint16_t fatSize = bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec;
+
     uint16_t * fatBuffer = (uint16_t *) malloc(fatSize);
 
     readImage(fatStart, filePath, fatSize, fatBuffer);
@@ -303,6 +331,8 @@ int main(int argc, char ** argv)
 
     // Task 4
     // DirectoryStructure * rootDir = (DirectoryStructure *) malloc(sizeof(DirectoryStructure));
+    //
+    // ROOT DIRECTORY SIZE CALC IS WRONG COME BACK AND CHANGE
     uint32_t sizeOf = (bootSector->BPB_RootEntCnt*sizeof(DirectoryStructure));
 
     DirectoryStructure * rootEntries = malloc(sizeOf);
@@ -310,18 +340,33 @@ int main(int argc, char ** argv)
     uint32_t rootStart = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16))*bootSector->BPB_BytsPerSec;
 
     printf("Root Start: %d \nSize of Root: %d\n", rootStart, sizeOf);
+
     printf("------ Task 4 ------\n");
     readImage(rootStart, filePath, sizeOf, rootEntries);
-    printf("==================================================================================\n");
+
+    printf("+================================================================================+\n");
     printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
-    printf("==================================================================================\n");
+    printf("+================================================================================+\n");
+
     for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
     {
         readRootDir(&rootEntries[i], bootSector);
     }
-    printf("==================================================================================\n\n");
 
-    // readRootDir(rootDir, filePath, bootSector, rootStart, rootEntries);
+    printf("+================================================================================+\n\n");
+
+    uint32_t readLength = bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec;
+    char * sectorBuffer = (void *) malloc(readLength);
+
+    // 1. Calculate how many bytes the Root Directory occupies
+    uint32_t rootDirBytes = bootSector->BPB_RootEntCnt * 32;
+
+    // 2. Calculate the Start of the Data Area (Byte Offset)
+    // (Reserved + FATs) * BytesPerSec + RootDirBytes
+    uint32_t dataStartByte = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec + rootDirBytes;
+
+    // 3. Calculate the Cluster Offset in bytes
+    // (cluster - 2) * SectorsPerCluster * BytesPerSector
 
     // User Command Line Interface for Task 5
     while (1)
@@ -348,26 +393,105 @@ int main(int argc, char ** argv)
             printf("h - Help\n");
             printf("tc <int> - Trace Cluster Chain\n");
             printf("ls - List Files\n");
-            printf("rf <filename> <bytes> - Read File\n");
+            printf("cat <filename> <bytes> - Read File\n");
             continue;
         }
         else if (cmdCount == 2 && strcmp(command, "tc") == 0)
         {
             uint16_t startCluster = atoi(readFileName);
 
-            printf("Chasing Cluster Chain from %d: ", startCluster);
+            printf("Following Cluster Chain from %d: ", startCluster);
             printClusterChain(fatBuffer, startCluster);
             continue;
         }
-        // else if (cmdCount == 1 && strcmp(command, "ls") == 0)
-        // {
-        //     printf("List of Files: \n");
-        //     readRootDir(rootDir, filePath, bootSector, rootStart, rootEntries);
-        //     continue;
-        // }
-        else if (cmdCount == 3 && strcmp(command, "rf") == 0)
+        else if (cmdCount == 1 && strcmp(command, "ls") == 0)
         {
-            printf("Reading %d bytes from File: %s\n", bytesToRead, readFileName);
+            printf("List of Files: \n");
+            printf("+================================================================================+\n");
+            printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
+            printf("+================================================================================+\n");
+            for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
+            {
+                readRootDir(&rootEntries[i], bootSector);
+            }
+            printf("+================================================================================+\n\n");
+
+            continue;
+        }
+        else if (cmdCount == 2 && strcmp(command, "cat") == 0)
+        {
+            // printf("Reading %d bytes from File: %s\n", bytesToRead, readFileName);
+            for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
+            {
+                char fileName[13];
+                getFileName(rootEntries[i], fileName);
+
+                if (strcmp(readFileName, fileName) == 0)
+                {
+                    if (rootEntries[i].DIR_Attr & 0x10 || rootEntries[i].DIR_Attr & 0x08)
+                    {
+                        printf("Directory/Volume Entered\n");
+                        continue;
+                    }
+
+                    uint32_t currentCluster = getStartCluster(rootEntries[i]);
+                    while (currentCluster != 0xFFF8)
+                    {
+                        uint32_t clusterOffsetByte = (currentCluster - 2) * bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec;
+
+                        uint32_t finalByteOffset = dataStartByte + clusterOffsetByte;
+                        uint32_t bytesRemaining = rootEntries[i].DIR_FileSize;
+
+                        uint32_t toWrite = (bytesRemaining < readLength) ? bytesRemaining : readLength;
+
+                        // 5. Read using the Byte Offset
+                        readImage(finalByteOffset, filePath, readLength, sectorBuffer);
+                        write(1,sectorBuffer, toWrite);
+
+                        currentCluster = nextCluster(fatBuffer, currentCluster);
+                    }
+                }
+                continue;
+            }
+            continue;
+        }
+        else if (cmdCount == 3 && strcmp(command, "cat") == 0)
+        {
+            // printf("Reading %d bytes from File: %s\n", bytesToRead, readFileName);
+            for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
+            {
+
+                char fileName[13];
+                getFileName(rootEntries[i], fileName);
+
+                if (strcmp(readFileName, fileName) == 0)
+                {
+                    if (rootEntries[i].DIR_Attr & 0x10 || rootEntries[i].DIR_Attr & 0x08)
+                    {
+                        printf("Directory/Volume Entered\n");
+                        break;
+                    }
+                    uint32_t currentcluster = getStartCluster(rootEntries[i]);
+                    while (nextCluster(fatBuffer, currentcluster) != 0xFFF8)
+                    {
+                        uint32_t clusterOffsetByte = (currentcluster - 2) * bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec;
+
+                        uint32_t finalByteOffset = dataStartByte + clusterOffsetByte;
+                        uint32_t bytesRemaining = bytesToRead;
+
+                        uint32_t toWrite = (bytesRemaining < readLength) ? bytesRemaining : readLength;
+
+                        // 5. Read using the Byte Offset
+                        readImage(finalByteOffset, filePath, readLength, sectorBuffer);
+                        write(1,sectorBuffer, toWrite);
+
+                        currentcluster = nextCluster(fatBuffer, currentcluster);
+
+                    }
+
+                }
+                continue;
+            }
             continue;
         }
         else
@@ -377,11 +501,10 @@ int main(int argc, char ** argv)
         }
     }
 
-    uint32_t dataStart = rootStart + sizeOf;
-
+    // Freeing up memory
+    free(sectorBuffer);
     free(fatBuffer);
     free(buffer);
-    // free(rootDir);
     free(rootEntries);
     free(bootSector);
     return 0;

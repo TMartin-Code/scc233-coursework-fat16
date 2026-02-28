@@ -1,0 +1,14 @@
+next, need to actually create the lfn buffers and somehow pass them to the sfn shit.
+to get the lfn, only reset the buffer when the next order has & 0x40
+Then to get offset its the order * 13 as each lfn entry is 13 chars.
+so when next seq = 0, its the entry and then reset the buffer.
+then task 6 done.
+
+
+
+
+--- TASK6 ---
+- Add lfns as they appear.
+- Remove after sfn handled
+- calc checksum for lfns
+- print the long file name

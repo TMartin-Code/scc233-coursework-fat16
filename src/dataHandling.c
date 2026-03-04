@@ -156,7 +156,6 @@ void readRootDir(FileEntryNames * entry, BootSector * bootSector, char * lfnBuff
 
     // File Names
     int valid = checkValidRootFile(rootDir->DIR_Name, rootDir->DIR_Attr);
-    int lfnCount;
 
 
     if (valid == 1)

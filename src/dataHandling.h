@@ -4,12 +4,43 @@
 
 #include "fat16Structures.h"
 #include <stdint.h>
-
+/**
+ * @brief reads directory entry and ouputs the processed data, and updates entrys long and short filenames
+ * @param entry - Pointer to a structure containing current directory entry and its short and long file names.
+ * @param bootSector - Pointer to boot sector data buffer
+ * @param lfnBuffer - Pointer to a string that keeps track of current entrys long file name
+ * @param checksum - Pointer to uint8_t value used to compare long file name entrys checksums
+ */
 void readRootDir(FileEntryNames * entry, BootSector * bootSector, char * lfnBuffer, uint8_t * checksum);
+
+/**
+ * @brief Updates longfile name buffer with current long file name entries data
+ * @param lFN - Pointer to long file name entry
+ * @param buffer - Pointer to long file name entrys buffer
+ */
 void getLFNChars(LongFileNameEntry * lFN, char * buffer);
+
+/**
+ * @brief Checks that current entry isnt empty or the last entry in the directory.
+ * @param name - Pointer to current directory entrys unprocessed name data
+ * @param attribute - uin8_t value containing current entrys attribute flags
+ */
 int checkValidRootFile(uint8_t * name, uint8_t attributes);
+
+/**
+ * @brief Parses directory entrys filename from unprocssed data and updates pointer to the filename
+ * @param directory - Current entrys data in Directory Structure format
+ * @param fileName - Pointer to string that is the filename to update.
+ */
 void getFileName(DirectoryStructure directory, char *fileName);
+
+/**
+ * @brief Parses directory entrys attribute flags from unprocessed data, and updates pointer to attribute flags
+ * @param directory - Current entrys data in Directory Structure format
+ * @param attribute - Pointer to string that is the attribute flags to update.
+ */
 void getAttributes(DirectoryStructure directory, char *attrFlags);
+
 void findTime(int time, int * timeArray, int createTrue);
 void findDate(int date, int * dateArray);
 uint32_t getStartCluster(DirectoryStructure directory);

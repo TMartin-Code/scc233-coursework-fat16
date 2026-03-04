@@ -1,5 +1,4 @@
 // Header Files
-// #include <cstdint>
 #include <endian.h>
 #include <linux/limits.h>
 #include <stdint.h>
@@ -177,7 +176,7 @@ void getFileName(DirectoryStructure directory, char *fileName)
 void printDirectory(DirectoryStructure directory, char * fileName, char *attrFlags, int *writeDate, int * writeTime, char * longFileName)
 {
     uint32_t startCluster = getStartCluster(directory);
-    printf("| %-8u | %02d:%02d:%02d | %04d/%02d/%02d | %-15s | %-10u | %-13s|\n",
+    printf("| %-8u | %02d:%02d:%02d | %04d/%02d/%02d | %-15s | %-10u | %-36s|\n",
         startCluster,
         writeTime[0], writeTime[1], writeTime[2],
         writeDate[0], writeDate[1], writeDate[2],
@@ -187,8 +186,8 @@ void printDirectory(DirectoryStructure directory, char * fileName, char *attrFla
     if(longFileName[0] != '\0')
     {
         // int count = 0;
-        printf("| ");
-        printf("%-78s", longFileName);
+        printf("|- ");
+        printf("%-100s", longFileName);
         printf(" |\n");
 
     }
@@ -310,22 +309,6 @@ void readRootDir(FileEntryNames * entry, BootSector * bootSector, char * lfnBuff
 
 }
 
-// Directory* newDirectory(uint32_t startCluster, char * fileName, Directory * previousDir)
-// {
-//     Directory * newDirectory = malloc(sizeof(Directory));
-//     if (newDirectory == NULL)
-//     {
-//         printf("Error Creating Directory Structure.\n");
-//         return NULL;
-//     }
-
-//     newDirectory->previousDirectory = previousDir;
-//     strcpy(newDirectory->shortFileName, fileName);
-//     newDirectory->startCluster = startCluster;
-
-//     return newDirectory;
-// }
-
 // Main Function
 int main(int argc, char ** argv)
 {
@@ -394,9 +377,10 @@ int main(int argc, char ** argv)
     printf("------ Task 4 ------\n");
     readImage(rootStart, filePath, rootDirBytes, rootEntries);
 
-    printf("+================================================================================+\n");
-    printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "File Name");
-    printf("+================================================================================+\n");
+    printf("+=======================================================================================================+\n");
+    printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-36s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "File Name");
+    printf("+=======================================================================================================+\n");
+
 
     for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
     {
@@ -406,9 +390,9 @@ int main(int argc, char ** argv)
 
     }
 
-    printf("+================================================================================+\n\n");
+    printf("+=======================================================================================================+\n\n");
 
-    // Directory * currentDirectory = NULL;
+;
 
     uint32_t readLength = bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec;
     char * sectorBuffer = (void *) malloc(readLength);
@@ -455,16 +439,18 @@ int main(int argc, char ** argv)
         else if (cmdCount == 1 && strcmp(command, "ls") == 0)
         {
             printf("List of Files: \n");
-            printf("+================================================================================+\n");
-            printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-13s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
-            printf("+================================================================================+\n");
+            printf("+=======================================================================================================+\n");
+            printf("| %-8s | %-8s | %-10s | %-15s | %-10s | %-36s|\n", "Cluster", "Time", "Date", "Attributes", "Size", "Name");
+            printf("+=======================================================================================================+\n");
+
             memset(lfnBuffer, 0, 256);
             checksum = 0;
             for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
             {
                 readRootDir(&entries[i], bootSector, lfnBuffer, &checksum);
             }
-            printf("+================================================================================+\n\n");
+            printf("+=======================================================================================================+\n");
+
 
             continue;
         }
@@ -488,13 +474,13 @@ int main(int argc, char ** argv)
                 }
                 if (strcmp(lfn, entries[i].longFN) == 0)
                 {
-                    if (rootEntries[i].DIR_Attr & 0x10 || rootEntries[i].DIR_Attr & 0x08)
+                    if (entries[i].entry.DIR_Attr & 0x10 || entries[i].entry.DIR_Attr & 0x08)
                     {
                         printf("Directory/Volume Entered\n");
                         break;
                     }
-                    uint32_t currentcluster = getStartCluster(rootEntries[i]);
-                    uint32_t bytesRemaining = rootEntries[i].DIR_FileSize;
+                    uint32_t currentcluster = getStartCluster(entries[i].entry);
+                    uint32_t bytesRemaining = entries[i].entry.DIR_FileSize;
 
                     while (currentcluster != 0xFFFF)
                     {
@@ -542,6 +528,7 @@ int main(int argc, char ** argv)
 
                     uint32_t currentCluster = getStartCluster(rootEntries[i]);
                     uint32_t bytesRemaining = rootEntries[i].DIR_FileSize;
+
 
                     while (currentCluster != 0xFFFF)
                     {
@@ -623,33 +610,6 @@ int main(int argc, char ** argv)
             }
             continue;
         }
-        // // Task 7 Attempt
-        // else if (cmdCount == 2 && strcmp(command, "cd") == 0)
-        // {
-        //     printf("here1");
-        //     // DirectoryStructure *  activeDirectory;
-        //     char *nextPart = strtok(readFileName, "/");
-        //     while (nextPart != NULL)
-        //     {
-        //         for (int i = 0; i < entriesCount; i++)
-        //         {
-        //             // // printf("%s / %s / %s\n", nextPart, entries[i].shortFN, entries[i].longFN);
-        //             if (strcmp(entries[i].shortFN, nextPart) == 0 || strcmp(entries[i].longFN, nextPart) == 0)
-        //             {
-        //                 printf("here2");
-        //             //     // currentDirectory = newDirectory(getStartCluster(entries[i].entry), entries[i].shortFN, currentDirectory);
-        //             //     // uint32_t currentcluster = currentDirectory->startCluster;
-        //             //     // uint32_t clusterOffsetByte = (currentcluster - 2) * bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec;
-        //             //     printf("here3");
-        //             //     // readImage(clusterOffsetByte, filePath, 10, activeDirectory);
-        //             //     // char fileName[13];
-        //             //     // getFileName(*activeDirectory, fileName);
-        //             //     // printf("%s\n", fileName);
-        //             }
-        //         nextPart = strtok(NULL, "/");
-        //         }
-        //     }
-        // }
         else
         {
             printf("Invalid command.\n");
@@ -657,21 +617,12 @@ int main(int argc, char ** argv)
         }
     }
 
-    // Directory* temp = currentDirectory;
-    // while (temp != NULL)
-    // {
-    //     printf("%s -> ", temp->shortFileName);
-    //     temp = temp->previousDirectory;
-    // }
-    // printf("Root\n");
-
-    // Freeing up memory
     free(sectorBuffer);
     free(fatBuffer);
     free(buffer);
     free(rootEntries);
     free(bootSector);
     free(lfnBuffer);
-    // free(currentDirectory);
+
     return 0;
 }

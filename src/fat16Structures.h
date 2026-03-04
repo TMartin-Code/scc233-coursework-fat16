@@ -1,6 +1,9 @@
 #ifndef FAT16STRUCTURES_H
 #define FAT16STRUCTURES_H
 
+/*
+ * Header File containing the Structs used in the fat16 filesystem project.
+ */
 
 #include <stdint.h>
 
@@ -65,12 +68,5 @@ typedef struct __attribute__((__packed__))
     char longFN[256];
 
 } FileEntryNames;
-
-typedef struct Directory
-{
-    uint32_t startCluster;
-    struct Directory * previousDirectory;
-    char shortFileName[13];
-} Directory;
 
 #endif

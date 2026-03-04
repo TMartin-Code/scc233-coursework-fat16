@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+// Structure defining the layout of a fat16 boot sector
 typedef struct __attribute__((__packed__))
 {
     uint8_t BS_jmpBoot[3];      // x86 instr. to boot code
@@ -31,7 +32,8 @@ typedef struct __attribute__((__packed__))
     uint8_t BS_FilSysType[8];   // e.g. FAT16 (not 0 term)
 } BootSector;
 
-// Task 4
+
+// Structure defining the layout of a fat16 directory entry
 typedef struct __attribute__((__packed__))
 {
     uint8_t DIR_Name[11];       // Non-zero terminated string
@@ -48,7 +50,7 @@ typedef struct __attribute__((__packed__))
     uint32_t DIR_FileSize;      // File size in bytes
 } DirectoryStructure;
 
-// Task 6
+// Structure defining the layout of a fat16 long file name entry
 typedef struct __attribute__((__packed__))
 {
     uint8_t LDIR_Ord;           // Order/ position in sequence/ set
@@ -61,6 +63,7 @@ typedef struct __attribute__((__packed__))
     uint8_t LDIR_Name3[4];    // Last 2 UNICODE characters
 } LongFileNameEntry;
 
+// Structure defining the layout of directory entries and their long and short filenames
 typedef struct __attribute__((__packed__))
 {
     DirectoryStructure entry;

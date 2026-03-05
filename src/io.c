@@ -45,9 +45,15 @@ void printClusterChain(uint16_t * fatBuffer, uint16_t start)
 {
     uint32_t currentCluster = start;
 
+    int count = 0;
     while (currentCluster < 0xFFF8)
     {
+        if (count==32)
+        {
+            printf("\n");
+        }
         printf("0x%02X -> ", currentCluster);
+        count++;
         currentCluster = fatBuffer[currentCluster];
     }
 
@@ -70,9 +76,16 @@ void printBootSector(BootSector * bootSector)
 
 void printBytes(unsigned char * buffer, int length)
 {
+    int count = 0;
     for (int i = 0; i < length; i++)
     {
+        if (count == 32)
+        {
+            printf("\n");
+            count = 0;
+        }
         printf("%02X ", buffer[i]);
+        count++;
     }
     printf("\n");
 }

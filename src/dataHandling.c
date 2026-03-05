@@ -144,6 +144,7 @@ void getLFNChars(LongFileNameEntry * lFN, char * buffer)
         }
         temp[count++] = lFN->LDIR_Name3[i];
     }
+
     writeToBuffer:
     temp[count] = '\0';
     memcpy(buffer + index, temp, count);

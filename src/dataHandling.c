@@ -126,7 +126,7 @@ void getLFNChars(LongFileNameEntry * lFN, char * buffer)
         {
             goto writeToBuffer;
         }
-        temp[count++] = (char)lFN->LDIR_Name1[i];
+        temp[count++] = lFN->LDIR_Name1[i];
     }
     for (int i = 0; i < 12; i+=2)
     {
@@ -134,7 +134,7 @@ void getLFNChars(LongFileNameEntry * lFN, char * buffer)
         {
             goto writeToBuffer;
         }
-        temp[count++] = (char)lFN->LDIR_Name2[i];
+        temp[count++] = lFN->LDIR_Name2[i];
     }
     for (int i = 0; i < 4; i+=2)
     {
@@ -142,7 +142,7 @@ void getLFNChars(LongFileNameEntry * lFN, char * buffer)
         {
             goto writeToBuffer;
         }
-        temp[count++] = (char)lFN->LDIR_Name3[i];
+        temp[count++] = lFN->LDIR_Name3[i];
     }
     writeToBuffer:
     temp[count] = '\0';
@@ -150,7 +150,7 @@ void getLFNChars(LongFileNameEntry * lFN, char * buffer)
     return;
 }
 
-void readRootDir(FileEntryNames * entry, BootSector * bootSector, char * lfnBuffer, uint8_t * checksum)
+void readRootDir(FileEntryNames * entry, char * lfnBuffer, uint8_t * checksum)
 {
     DirectoryStructure * rootDir = &entry->entry;
 
@@ -180,7 +180,7 @@ void readRootDir(FileEntryNames * entry, BootSector * bootSector, char * lfnBuff
         return;
     }
     // File Attributes
-    char attrFlags[7] = "------\0";
+    char attrFlags[7] = "------";
     getAttributes(*rootDir, attrFlags);
 
     // Date format

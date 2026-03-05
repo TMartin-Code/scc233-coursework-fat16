@@ -11,7 +11,7 @@
  * @param lfnBuffer - Pointer to a string that keeps track of current entrys long file name
  * @param checksum - Pointer to uint8_t value used to compare long file name entrys checksums
  */
-void readRootDir(FileEntryNames * entry, BootSector * bootSector, char * lfnBuffer, uint8_t * checksum);
+void readRootDir(FileEntryNames * entry, char * lfnBuffer, uint8_t * checksum);
 
 /**
  * @brief Updates longfile name buffer with current long file name entries data

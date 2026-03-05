@@ -107,7 +107,7 @@ void printTable(uint8_t * checksum, char * lfnBuffer, BootSector * bootSector, F
     for (int i = 0; i < bootSector->BPB_RootEntCnt; i++)
     {
         entries[i].entry = rootEntries[i];
-        readRootDir(&entries[i], bootSector, lfnBuffer, checksum);
+        readRootDir(&entries[i], lfnBuffer, checksum);
 
     }
     printf("+=======================================================================================================+\n");

@@ -133,7 +133,7 @@ int main(int argc, char ** argv)
             char lfn[256];
             fgets(lfn, sizeof(lfn), stdin);
 
-            // Removing stdin \n character
+            // Removing stdin \n character as was getting 10 when strcmp
             int endLine = strcspn(lfn, "\n");
             lfn[endLine] = 0;
 

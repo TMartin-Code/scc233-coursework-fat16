@@ -1,4 +1,4 @@
-[Fat 16 File-System Implementation Coursework]
+[Fat 16 File-System Implementation Coursework]h
   Module - SCC.233 Operating Systems
   Date - 05/03/2026
   Name - Thomas Martin
@@ -11,8 +11,10 @@
   Make - To Compile the project
   
 ## Compiling the Program
-  []$ make - Will compile the .c and .h file into the run.exe file.
-  []$ make clean - Will remove the .o and run.exe file created by the original make command.
+  [~/src]$ make - Will compile the .c and .h file into the run.exe file.
+  [~/src]$ make clean - Will remove the .o and run.exe file created by the original make command.
+  --- Compiling without make ---
+  [~/src]$ gcc coursework.c dataHandling.c io.c -o run.exe
   
 ## Running the Program
   []$ ./run.exe <integer for byte offset (task1)> <integer for length of bytes to read (task1)> <Integer for starting cluster number (task3)> <filepath of disk image to read from (default is 'fat16.img')>

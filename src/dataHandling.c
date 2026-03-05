@@ -154,9 +154,7 @@ void readRootDir(FileEntryNames * entry, char * lfnBuffer, uint8_t * checksum)
 {
     DirectoryStructure * rootDir = &entry->entry;
 
-    // File Names
     int valid = checkValidRootFile(rootDir->DIR_Name, rootDir->DIR_Attr);
-
 
     if (valid == 1)
     {
@@ -179,33 +177,25 @@ void readRootDir(FileEntryNames * entry, char * lfnBuffer, uint8_t * checksum)
         getLFNChars(longFileName, lfnBuffer);
         return;
     }
-    // File Attributes
+
     char attrFlags[7] = "------";
     getAttributes(*rootDir, attrFlags);
 
-    // Date format
     int createDate[3];
     int writeDate[3];
 
-    // Create Date
     findDate(rootDir->DIR_CrtDate, createDate);
-    // Write Date
     findDate(rootDir->DIR_WrtDate, writeDate);
 
-    // Time format
     int createTime[4];
     int writeTime[3];
 
-    // Create Time
     findTime(rootDir->DIR_CrtTime, createTime, rootDir->DIR_CrtTimeTenth);
-    // Write Time
     findTime(rootDir->DIR_WrtTime, writeTime, 0);
 
-    // Filenames
     getFileName(*rootDir, entry->shortFN);
-
     strcpy(entry->longFN, lfnBuffer);
-    // Print
+
     printDirectory(*rootDir, entry->shortFN, attrFlags, writeDate, writeTime, entry->longFN);
 
 }

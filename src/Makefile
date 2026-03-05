@@ -1,6 +1,6 @@
 # Variables
 CC = gcc
-CFLAGS = -Wall -Wextra -g
+CFLAGS = -Wall
 OBJ = coursework.o dataHandling.o io.o
 TARGET = run.exe
 
@@ -12,9 +12,6 @@ $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJ)
 
 # Compile each .c file into a .o file
-# We list headers as dependencies so that if a header changes,
-# the source file is recompiled.
-
 coursework.o: coursework.c dataHandling.h io.h
 	$(CC) $(CFLAGS) -c coursework.c
 

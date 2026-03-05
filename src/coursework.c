@@ -147,7 +147,7 @@ int main(int argc, char ** argv)
                 }
                 if (strcmp(lfn, entries[i].longFN) == 0)
                 {
-                    if (entries[i].entry.DIR_Attr & 0x10 || entries[i].entry.DIR_Attr & 0x08)
+                    if (entries[i].entry.DIR_Attr & 0x18)
                     {
                         printf("Directory/Volume Entered\n");
                         break;
@@ -169,7 +169,7 @@ int main(int argc, char ** argv)
                 }
                 if (strcmp(readFileName, entries[i].shortFN) == 0 || strcmp(readFileName, entries[i].longFN) == 0)
                 {
-                    if (rootEntries[i].DIR_Attr & 0x10 || rootEntries[i].DIR_Attr & 0x08)
+                    if (entries[i].entry.DIR_Attr & 0x18)
                     {
                         printf("Directory/Volume Entered (Did you mean to use cd?)\n");
                         break;
@@ -195,7 +195,7 @@ int main(int argc, char ** argv)
 
                 if (strcmp(readFileName, entries[i].shortFN) == 0 || strcmp(readFileName, entries[i].longFN) == 0)
                 {
-                    if (rootEntries[i].DIR_Attr & 0x10 || rootEntries[i].DIR_Attr & 0x08)
+                    if (entries[i].entry.DIR_Attr & 0x18)
                     {
                         printf("Directory/Volume Entered (Did you mean to use cd?)\n");
                         break;
